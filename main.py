@@ -21,6 +21,7 @@ tokens = (
     'IF',
     'ELSE',
     'WHILE',
+    'FOR',
     'INT',
     'FLOAT',
     'CHAR',
@@ -87,6 +88,7 @@ keywords = {
     'if': 'IF',
     'else': 'ELSE',
     'while': 'WHILE',
+    'for': 'FOR',
     'int': 'INT',
     'float': 'FLOAT',
     'char': 'CHAR',
@@ -102,7 +104,7 @@ keywords = {
 
 # 正则表达式规则
 def t_KEYWORD(t):
-    r'if|else|while|int|float|char|bool|array|struct|node|edge|graph|void'
+    r'if|else|while|for|int|float|char|bool|array|struct|node|edge|graph|void'
     t.type = keywords.get(t.value, 'ID')  # 如果是关键字则替换类型为对应的关键字类型
     return t
 
@@ -128,8 +130,19 @@ def t_FLOAT_CONST(t):
 def t_ID(t):
     r'[a-zA-Z_][a-zA-Z0-9_]*'
     t.type = keywords.get(t.value, 'ID')  # 如果是关键字则替换类型为对应的关键字类型
-    return t
+    line_start = content.rfind('\n', 0, t.lexpos) + 1
+    if line_start == 0:
+        line_start = 1  # 如果没有找到换行符，表示在第一行
 
+    line_end = content.find('\n', t.lexpos)
+    if line_end == -1:
+        line_end = len(content)  # 如果没有找到下一个换行符，表示在最后一行
+
+    line = content.count('\n', 0, t.lexpos) + 1
+    column = t.lexpos - line_start + 1
+
+    print(f"{t.type}('{t.value}', {line}, {column})")
+    return t
 
 def t_error(t):
     print(f"Illegal character '{t.value[0]}' at index {t.lexpos}")
@@ -154,18 +167,9 @@ def t_SEMICOLON(t):
 # 忽略空格和制表符
 t_ignore = ' \t\n'
 
+
 # 创建词法分析器
 lexer = lex.lex()
-
-# 测试输入
-# input_data = content
-#
-# # 输入词法分析器
-# lexer.input(input_data)
-#
-# # 打印识别到的词法单元
-# for token in lexer:
-#     print(token)
 
 input_data = content
 
