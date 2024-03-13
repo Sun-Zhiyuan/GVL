@@ -1,0 +1,62 @@
+program = (function_definition | struct_definition)*
+function_definition = type_specification identifier "(" formal_parameters? ")" block
+struct_definition = "struct" IDENTIFIER "{" (type_specification identifier ";")* "}"
+formal_parameters = formal_parameter ("," formal_parameter)*
+formal_parameter = type_specification identifier ("[" "]" | "[" INTEGER "]")?
+type_specification = "int" | "float" | "char" | "bool" | "void" | "graph" |
+                     "edge" | "node"
+
+block = "{" compound_statement "}"
+compound_statement = (variable_declaration | statement | special_function)*
+special_function = add_node
+             | add_edge
+             | remove_node
+             | remove_edge
+             | change_node_rgb
+             | change_node_x
+             | change_node_y
+             | change_edge_rgb
+             | show
+             | dfs
+add_node = "add_node" "(" expression "," expression "," "{" expression "," expression "," expression "," expression "," expression "," expression "}" ")"";"
+add_edge = "add_edge" "(" expression "," "{" expression "," expression "," expression "," expression "," expression "," expression "}" ")"";"
+remove_node = "remove_node" "("expression "," expression ")" ";"
+remove_edge = "remove_edge" "(" expression "," expression)" ";"
+change_node_rgb = "change_node_rgb" "(" expression "," expression "," "(" expression "," expression "," expression ")" ")" ";"
+change_node_x = "change_node_x" "(" expression "," expression "," expression)" ";"
+change_node_y = "change_node_y" "(" expression "," expression "," expression)" ";"
+change_edge_rgb : "change_edge_rgb" "(" expression "," expression "," expression "," expression "," expression "," expression ")" ";"
+show = "show" "(" expression (","expression)*")"
+dfs = "dfs" "(" identifier "," node "," identifier ")" ";"
+statement = expression-statement
+          | "return" expression-statement
+          | if-statement
+          | for-statement
+          | while-statement
+if-statement = "if" "(" expression ")" "{" statement* "}" ("else" if-statement | "else" "{" statement* "}")?
+for-statement = "for" "(" expression? ";" expression? ";" expression? ")" "{" statement* "}"
+while-statement = "while" "(" expression ")" "{" statement* "}"
+variable_declaration = type_specification (identifier ("=" expr)? ("," identifier ("=" expr)?)*)? ";"
+expression-statement = expression? ";"
+expression = assign
+assign = equality ("=" assign)? | post_increment
+post_increment = "+""+"primary | "-""-"primary
+equality = relational ("==" relational | "! =" relational)*
+relational = add_sub ("<" add_sub | "<=" add_sub | ">" add_sub | ">=" add_sub)*
+add_sub = mul_div_mod ("+" mul_div_mod | "-" mul_div_mod)*
+mul_div_mod = unary ("*" unary | "/" unary | "%"unary)*
+unary = ("+" | "-") primary | primary | "!" primary
+primary = "(" expression ")"
+        | identifier args?
+        | TRUE
+        | FALSE
+        | num
+        | identifier "[" expression "]"
+        | node
+        | graph
+        | edge
+args = "(" (assign ("," assign)*)? ")"
+num = INT_CONST | FLOAT_CONST | function_num
+node = identifier | function_node
+function_num = "LENGTH" "(" identifier "." "ADJ" "[" identifier "]" ")"
+function_node = identifier "." "ADJ" "[" identifier "]" "[" identifier "]"
