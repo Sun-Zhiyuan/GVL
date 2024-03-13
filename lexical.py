@@ -5,16 +5,33 @@ import ply.yacc as yacc
 
 from NodeAddEdge import NodeAddEdge
 from NodeAddNode import NodeAddNode
+from NodeAddSubTail import NodeAddSubTail
+from NodeArrayAccess import NodeArrayAccess
+from NodeArrayAccessExpression import NodeArrayAccessExpression
+from NodeArrayAssignment import NodeArrayAssignment
+from NodeAssignExpression import NodeAssignExpression
 from NodeBlock import NodeBlock
 from NodeChangeEdgeRgb import NodeChangeEdgeRGB
 from NodeChangeNodeRgb import NodeChangeNodeRGB
 from NodeChangeNodeX import NodeChangeNodeX
 from NodeDfs import NodeDFS
+from NodeEqualityExpression import NodeEqualityExpression
 from NodeExpressionStatement import NodeExpressionStatement
 from NodeForStatement import NodeForStatement
 from NodeFormalParameter import NodeFormalParameter, NodeArrayParameter
+from NodeFunctionCall import NodeFunctionCall
+from NodeFunctionNum import NodeFunctionNum
+from NodeGreaterThan import NodeGreaterThan
+from NodeGreaterThanOrEqual import NodeGreaterThanOrEqual
+from NodeIdentifer import NodeIdentifier
 from NodeIfElseStatement import NodeIfElseStatement
 from NodeIfStatement import NodeIfStatement
+from NodeLessThan import NodeLessThan
+from NodeLessThanOrEqual import NodeLessThanOrEqual
+from NodeMulDivMod import NodeMulDivMod
+from NodePIExpression import NodePIExpression
+from NodePostDecrementExpression import NodePostDecrementExpression
+from NodePreincrementExpression import NodePreIncrementExpression
 from NodeProgram import NodeProgram
 from NodeFunctionDefinition import NodeFunctionDefinition
 from NodeRemoveEdge import NodeRemoveEdge
@@ -23,7 +40,10 @@ from NodeReturn import NodeReturnStatement
 from NodeShow import NodeShow
 from NodeStructDefinition import NodeStructDefinition
 from NodeTypeSpecification import NodeTypeSpecification
+from NodeUnaryExpression import NodeUnaryExpression
 from NodeVariableDeclaration import NodeVariableDeclaration
+from NodeWhileStatement import NodeWhileStatement
+from NodeNodeExpresion import NodeNodeExpression
 
 file_name = "input.txt"
 
@@ -504,10 +524,11 @@ def p_for_statement(p):
     p[0] = NodeForStatement(p[4], p[6], p[9], p[11])
     print("For statement parsed.")
 
+
 def p_while_statement(p):
     '''while_statement : WHILE LPAREN expression RPAREN block'''
+    p[0] = NodeWhileStatement(p[3], p[5])
     print("While statement parsed.")
-
 
 
 def p_empty(p):
@@ -519,20 +540,36 @@ def p_expression(p):
     '''expression : assign_expression
                   | node_expression'''
     print("Expression parsed.")
+    p[0] = p[1]  # 将子节点的解析结果传递给父节点
 
 
 def p_assign_expression(p):
     '''assign_expression : equality_expression ASSIGN assign_expression
                          | equality_expression
-                         | post_increment_expression'''
+                         | MINUS MINUS primary_expression
+                         | PLUS PLUS primary_expression'''
     print("Assignment expression parsed.")
+    if len(p) == 4:  # 赋值表达式
+        p[0] = NodeAssignExpression(p[1], p[3])
+    elif len(p) == 2:  # 相等性表达式
+        p[0] = NodeEqualityExpression(p[1])
+    else:  # 后增表达式或前增表达式
+        if p[1] == '--':
+            p[0] = NodePostDecrementExpression(p[3])
+        else:
+            p[0] = NodePreIncrementExpression(p[3])
 
 
 def p_equality_expression(p):
     '''equality_expression : relational_expression
                            | relational_expression EQUAL relational_expression
                            | relational_expression LOGICAL_NOT ASSIGN relational_expression'''
-    print("Equality expression parsed.")
+    if len(p) == 2:  # If only one relational expression
+        p[0] = NodeEqualityExpression(p[1])
+    elif len(p) == 4:  # If two relational expressions with equality operator
+        p[0] = NodeEqualityExpression(p[1], p[2], p[3])
+    else:  # If there's a logical_not and an assignment
+        p[0] = NodeEqualityExpression(p[1], p[2], p[4])
 
 
 def p_unary_expression(p):
@@ -540,12 +577,15 @@ def p_unary_expression(p):
                         | PLUS primary_expression
                         | MINUS primary_expression
                         | LOGICAL_NOT primary_expression'''
-    print("Unary expression parsed.")
+    if len(p) == 2:  # If only primary expression
+        p[0] = NodeUnaryExpression(expression=p[1])
+    else:  # If unary operator present
+        p[0] = NodeUnaryExpression(operator=p[1], expression=p[2])
 
 
 def p_relational_expression(p):
     '''relational_expression : add_sub_expression compare_expression'''
-    print("Relational expression parsed.")
+    p[0] = (p[1], p[2])
 
 
 def p_compare_expression(p):
@@ -554,11 +594,28 @@ def p_compare_expression(p):
                           | LESS_THAN_EQUAL ASSIGN add_sub_expression compare_expression
                           | GREATER_THAN add_sub_expression compare_expression
                           | GREATER_THAN_EQUAL ASSIGN add_sub_expression compare_expression'''
+    print("Compare expression parsed.")
+
+    if len(p) == 2:  # 如果只有一个子节点，即为空
+        p[0] = None  # 创建一个空节点
+    elif len(p) == 4:  # 如果有三个子节点
+        if p[1] == '<':  # 如果是小于号
+            p[0] = NodeLessThan(p[2], p[3])  # 创建小于节点，传入左右子表达式
+        elif p[1] == '<=':  # 如果是小于等于号
+            p[0] = NodeLessThanOrEqual(p[2], p[4])  # 创建小于等于节点，传入左右子表达式
+        elif p[1] == '>':  # 如果是大于号
+            p[0] = NodeGreaterThan(p[2], p[3])  # 创建大于节点，传入左右子表达式
+        elif p[1] == '>=':  # 如果是大于等于号
+            p[0] = NodeGreaterThanOrEqual(p[2], p[4])  # 创建大于等于节点，传入左右子表达式
+    else:
+        # 处理其他情况
+        pass
 
 
 def p_add_sub(p):
     '''add_sub_expression : mul_div_mod_expression add_sub_tail'''
     print("Addition/Subtraction parsed.")
+    p[0] = (p[1], p[2])
 
 
 def p_add_sub_tail(p):
@@ -566,11 +623,16 @@ def p_add_sub_tail(p):
                     | MINUS mul_div_mod_expression add_sub_tail
                     | empty'''
     print("Addition/Subtraction tail parsed.")
+    if len(p) == 4:
+        p[0] = NodeAddSubTail(p[1], p[2], p[3])
+    else:
+        p[0] = None
 
 
 def p_mul_div_mod(p):
     '''mul_div_mod_expression : unary_expression mul_div_mod_tail'''
     print("Multiplication/Division/Modulus parsed.")
+    p[0] = (p[1], p[2])
 
 
 def p_mul_div_mod_tail(p):
@@ -579,27 +641,40 @@ def p_mul_div_mod_tail(p):
                         | MODULO unary_expression mul_div_mod_tail
                         | empty'''
     print("Multiplication/Division/Modulus tail parsed.")
+    if len(p) == 4:
+        p[0] = NodeMulDivMod(p[1], p[2], p[3])
+    else:
+        p[0] = None
 
 
 def p_array_assignment_expression(p):
     '''array_assignment_expression : array_access ASSIGN expression'''
     print("Array assignment expression parsed.")
+    p[0] = NodeArrayAssignment(p[1], p[3])
 
 
 def p_post_increment_expression(p):
     '''post_increment_expression : PLUS PLUS primary_expression
                                  | MINUS MINUS primary_expression'''
+    print("Post-increment expression parsed.")
+    if len(p) == 4:
+        p[0] = NodePIExpression(p[1], p[3])  # 创建后自增/自减表达式节点，传入操作符和表达式
 
 
 def p_node_expression(p):
     '''node_expression : ID
                        | ID DOT ADJ LBRACKET ID RBRACKET LBRACKET ID RBRACKET
                        | INT_CONST'''
+    if len(p) == 2:  # 只有一个标识符或整数常量
+        p[0] = p[1]
+    else:  # 有ADJ的节点表达式
+        p[0] = NodeNodeExpression(p[1], p[5], p[9])
 
 
 def p_array_access(p):
     '''array_access : ID LBRACKET expression RBRACKET'''
     print("Array access parsed.")
+    p[0] = NodeArrayAccessExpression(p[1], p[3])
 
 
 def p_primary_expression(p):
@@ -615,26 +690,52 @@ def p_primary_expression(p):
                           | LPAREN expression RPAREN'''
     print("Primary expression parsed.")
 
+    if len(p) == 2:
+        if p[1] in ['TRUE', 'FALSE', 'NODE', 'EDGE', 'GRAPH']:
+            p[0] = p[1]  # 直接将 TRUE、FALSE、NODE、EDGE、GRAPH 存储在 p[0] 中
+        else:
+            p[0] = NodeIdentifier(p[1])  # 将 ID 存储在 NodeIdentifier 类的实例中
+    elif len(p) == 3:
+        p[0] = NodeFunctionCall(p[1], p[2])  # 创建函数调用节点，传入函数名和参数表达式
+    elif len(p) == 5:
+        p[0] = NodeArrayAccess(p[1], p[3])  # 创建数组访问节点，传入数组 ID 和索引表达式
+    else:
+        p[0] = p[2]  # 括号中的表达式不需要节点
+
 
 def p_args_expression(p):
     '''args_expression : LPAREN RPAREN
                        | LPAREN assign_expression_list RPAREN'''
+    if len(p) == 2:
+        p[0] = p[1]
+    else:
+        p[0] = p[2]
 
 
 def p_assign_expression_list(p):
     '''assign_expression_list : empty
                               | assign_expression
                               | assign_expression COMMA assign_expression_list'''
+    print("Assign expression list parsed.")
 
+    if len(p) == 2:
+        if p[1] is not None:
+            p[0] = [p[1]]  # 如果只有一个赋值表达式，则直接存储在列表中
+        else:
+            p[0] = []  # 如果是空的，直接初始化一个空列表
+    elif len(p) == 4:
+        p[0] = [p[1]] + p[3]  # 如果有多个赋值表达式，则将当前表达式和后面的表达式列表合并
 
 def p_num_expression(p):
     '''num_expression : INT_CONST
                       | FLOAT_CONST
                       | function_num_expression'''
+    p[0] = p[1]
 
 
 def p_function_num_expression(p):
     '''function_num_expression : LENGTH LPAREN ID DOT ADJ LBRACKET ID RBRACKET RPAREN'''
+    p[0] = NodeFunctionNum(p[3],p[7])
 
 
 def p_error(p):
